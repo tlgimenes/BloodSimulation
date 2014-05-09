@@ -1,0 +1,32 @@
+border a(t=0.006,0){x=0; y=t; label=4;};
+//border b(t=0,0.1){x=t; y=-0.006; label=1;};
+//border c(t=1,0){x=0.15+0.05*cos(pi*t); y=-0.006-0.01*sin(pi*t); label=1;};
+//border d(t=0.2,0.3){x=t; y=-0.006;label=1;};
+border b(t=0,0.3){x=t; y=0;label=1;};
+border e(t=0,0.006){x=0.3; y=t; label=2;};
+border f(t=0.3,0.2){x=t; y=0.006;label=3;};
+border g(t=0,1){x=0.15+0.05*cos(pi*t); y=0.006+0.01*sin(pi*t); label=3;};
+border h(t=0.1,0){x=t; y=0.006; label=3;};
+int n=100;
+mesh Th = buildmesh ( a(n)+b(n)+e(n)+f(n)+g(n)+h(n));
+
+real nu=0.01;
+//mesh Th=square(n,m, [z0+(z1-z0)*x, r0+(r1-r0)*y]);
+fespace Xh(Th, P2);
+fespace Mh(Th, P1);
+Xh u2, v2;
+Xh u1, v1;
+Mh p,q; 
+
+problem Stokes(u1, u2, p, v1, v2, q, solver=Crout)=
+int2d(Th)(y*nu*(dy(u2)*dy(v2)+dx(u2)*dx(v2)+u2/y*v2/y+dy(u1)*dy(v1)+dx(u1)*dx(v1))
+-y*p*q*(0.000001)-y*p*(dy(v2)+v2/y+dx(v1))+y*q*(dy(u2)+u2/y+dx(u1)))
++on(3, u1=0,u2=0)
++on(4, u1=-y^2/(2*nu)+0.006^2/(2*nu), u2=0);
+//+on(2, u1=(-(y-0.25)^2/(2*nu)+0.5^2/(8*nu))*0.5, u2=0);
+
+Stokes; plot([u1, u2],p);
+
+Th = adaptmesh(Th, p, err=1.e-3);
+
+Stokes; plot([u1,u2], p);
