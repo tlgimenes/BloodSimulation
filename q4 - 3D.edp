@@ -6,7 +6,7 @@
 //           Tiago Lobato Gimenes
 //
 //---------------------------------------------------------------------//
-// Resolution d'un probleme d'elasticite en 2D
+// Resolution d'un probleme d'elasticite en 3D
 //---------------------------------------------------------------------//
 
 //---------------------------------------------------------------------//
@@ -27,7 +27,7 @@ real lambda=E*nu/((1.+nu)*(1.-2.*nu));
 real mu=E/(2.*(1.+nu));
 
 // mesh density
-int Nbnoeuds=10;
+int Nbnoeuds=20;
 real L = 1;
 real Ly = L;
 real Lx = 2*Ly;
@@ -49,8 +49,8 @@ Wh [uh1,uh2],[vh1,vh2];
 // Formulation du probleme lineaire 
 //---------------------------------------------------------------------//
 problem elasticite([uh1,uh2],[vh1,vh2],solver=LU) =
-     int2d(Th)(2*mu*y*(dy(uh2)*dy(vh2)+1/2*(dy(uh1)+dx(uh2))*(dy(vh1)+dx(vh2))+uh2/y*vh2/y+dx(uh1)*dx(vh1)))
-     +int2d(Th)(lambda*y*(dx(uh1)+dy(uh2)+uh2/y)*(dx(vh1)+dy(vh2)+vh2/y))	           
+     int2d(Th)(2*mu*y*(dy(uh2)*dy(vh2)+0.5*(dy(uh1)+dx(uh2))*(dy(vh1)+dx(vh2))+uh2/y*vh2/y+dx(uh1)*dx(vh1)))
+    +int2d(Th)(lambda*y*(dx(uh1)+dy(uh2)+uh2/y)*(dx(vh1)+dy(vh2)+vh2/y))
     +on(4,uh1=0,uh2=0)
     +on(2,uh1=L*0.1,uh2=0)
 ;
