@@ -1,0 +1,69 @@
+//---------------------------------------------------------------------//
+//
+//  Simulation of the linear Stokes equation in fix 3D form 
+//
+//  Authors: Chongmo LIU
+//           Tiago Lobato Gimenes
+//
+//---------------------------------------------------------------------//
+// Resolution d'un probleme d'elasticite en 2D
+//---------------------------------------------------------------------//
+
+//---------------------------------------------------------------------//
+// General definitions for the whole program
+//---------------------------------------------------------------------//
+
+//---------------------------------------------------------------------//
+// Constants definitions
+//---------------------------------------------------------------------//
+//Module de Young (toujours positif)
+real E=15.;	
+		
+//Coefficient de Poisson (entre -1 et 1/2)
+real nu=0.35;
+
+//Coefficients de Lame
+real lambda=E*nu/((1.+nu)*(1.-2.*nu));
+real mu=E/(2.*(1.+nu));
+
+// mesh density
+int Nbnoeuds=10;
+real L = 1;
+real Ly = L;
+real Lx = 2*Ly;
+
+//---------------------------------------------------------------------//
+// Mesh
+//---------------------------------------------------------------------//
+mesh Th=square(Lx*Nbnoeuds,Ly*Nbnoeuds,[Lx*x,Ly*y]);
+
+//---------------------------------------------------------------------//
+// Espaces EF et fonctions discretes
+//---------------------------------------------------------------------//
+fespace Vh(Th,P1);
+fespace Wh(Th,[P1,P1]);
+
+Wh [uh1,uh2],[vh1,vh2];	
+
+//---------------------------------------------------------------------//
+// Formulation du probleme lineaire 
+//---------------------------------------------------------------------//
+problem elasticite([uh1,uh2],[vh1,vh2],solver=LU) =
+     int2d(Th)(2*mu*(2*dx(uh1)*dx(vh1)+2*dy(uh2)*dy(vh2) + 0.5*(dx(uh2)+dy(uh1))*(dx(vh2)+dy(vh1))))
+    +int2d(Th)(lambda*(dx(uh1)+dy(uh2))*(dx(vh1)+dy(vh2)))	           
+    +on(4,uh1=0,uh2=0)
+    +on(2,uh1=L*0.1,uh2=0)
+;
+
+//---------------------------------------------------------------------//
+// Main
+//---------------------------------------------------------------------//
+
+// Solves the problem
+elasticite; plot([uh1,uh2]);
+
+// creates a new mesh and moves it for plotting
+mesh Sh;
+real scale=10;
+Sh=movemesh(Th,[x+scale*uh1,y+scale*uh2]);
+plot(Sh);
