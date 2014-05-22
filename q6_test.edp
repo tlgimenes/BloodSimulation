@@ -28,11 +28,13 @@ real mu=E/(2.*(1.+nu));
 real nuFluide=0.01;
 
 // mesh density
-int Nbnoeuds=10;
 real L = 1;
 real Ly = L;
 real Lx = 3*Ly;
-real y0 = Ly;
+
+int N=10;
+int Nx=N*Lx;
+int Ny=N*Ly;
 
 // Time step
 real delta = 1;
@@ -40,51 +42,65 @@ real delta = 1;
 //---------------------------------------------------------------------//
 // Mesh
 //---------------------------------------------------------------------//
-mesh Th=square(Lx*Nbnoeuds,Ly*Nbnoeuds,[Lx*x,0.1*Ly*y+y0]);
-mesh Sk=square(Lx*Nbnoeuds,Ly*Nbnoeuds,[Lx*x,Ly*y]);
+border a(t=0,1){x=t*Lx; y = 0.7*Ly; label = 1;};
+border b(t=0.7*Ly,Ly){x = Lx; y = t; label = 2;};
+border c(t=1,0){x = Lx*t; y = Ly; label = 3;};
+border d(t=Ly, 0.7*Ly){x = 0; y = t; label = 4;};
+border e(t=0.7*Ly, 0){x = 0; y = t; label = 5;};
+border f(t=0,1){x = Lx*t; y = 0; label = 6;};
+border g(t=0,0.7*Ly){x = Lx; y = t; label = 7;};
+mesh Th = buildmesh( a(Nx) + b(Ny*0.3) + c(Nx) + d(Ny*0.3) + e(Ny*0.7) + f(Nx) + g(Ny*0.7));
 
 //---------------------------------------------------------------------//
 // Espaces EF et fonctions discretes
 //---------------------------------------------------------------------//
 // Deformation
 fespace Vh(Th,P1);
-fespace Wh(Th,[P1,P1]);
+fespace Wh(Th, P1);
 
-// StokesInit
-fespace Xh(Sk, P2);
-fespace Mh(Sk, P1);
+// Stokes
+fespace Xh(Th, P2);
+fespace Mh(Th, P1);
+
+// Domain
+fespace Zh(Th, P0);
+
+//Zh isSolid = (region == 2);
+//Zh isFluid = (region == 1);
 
 // Deformation
-Wh [uh1,uh2],[vh1,vh2];	
+Xh uh1, vh1;
+Xh uh2, vh2;
 
-// StokesInit
+// Stokes
 Xh u2, v2;
 Xh u1, v1;
 Mh p,q;
 
+// Solves the coupled formula
+problem Couple(uh1, uh2, vh1, vh2, u1, u2, v1, v2, solver=LU) = 
+     int2d(Th)(2*mu*(2*dx(uh1)*dx(vh1)+2*dy(uh2)*dy(vh2) + 0.5*(dx(uh2)+dy(uh1))*(dx(vh2)+dy(vh1))))
+    +int2d(Th)(lambda*(dx(uh1)+dy(uh2))*(dx(vh1)+dy(vh2)))
+   // +on(1,uh1=u1*delta, uh2=u2*delta)
+    +on(4,uh1=0,uh2=0)
+    +on(2,uh1=0,uh2=0)
+;
+
 //---------------------------------------------------------------------//
 // Solves the linear Stokes formula
 //---------------------------------------------------------------------//
-problem StokesInit(u1, u2, p, v1, v2, q, solver=Crout)=
-    int2d(Sk)(nu*(dx(u1)*dx(v1)+dy(u1)*dy(v1)+dx(u2)*dx(v2)+dy(u2)*dy(v2))
-    -p*q*(0.000001)-p*dx(v1)-p*dy(v2)-dx(u1)*q-dy(u2)*q)
-    +on(1, u2=0) // Vitesse horizontalle
-    +on(3, u1=0,u2=0)
-    +on(4, u1=-y^2+y0^2, u2=0)
-;
-
 problem Stokes(u1, u2, p, v1, v2, q, solver=Crout)=
-    int2d(Sk)(nu*(dx(u1)*dx(v1)+dy(u1)*dy(v1)+dx(u2)*dx(v2)+dy(u2)*dy(v2))
+    int2d(Th)(nu*(dx(u1)*dx(v1)+dy(u1)*dy(v1)+dx(u2)*dx(v2)+dy(u2)*dy(v2))
     -p*q*(0.000001)-p*dx(v1)-p*dy(v2)-dx(u1)*q-dy(u2)*q)
-    +on(1, u2=0) // Vitesse horizontalle
-    +on(3, u1=0,u2=0)
-    +on(4, u1=-y^2+y0^2, u2=0)
+    +on(6, u2=0) // Vitesse horizontalle
+    +on(1, u1=0,u2=0)
+    +on(5, u1=-y^2+Ly^2, u2=0)
 ;
 
 //---------------------------------------------------------------------//
 // Formulation du probleme lineaire 
 //---------------------------------------------------------------------//
-problem elasticite([uh1,uh2],[vh1,vh2],solver=LU) =
+problem elasticite(uh1,uh2,vh1,vh2,solver=LU) =
      int2d(Th)(2*mu*(2*dx(uh1)*dx(vh1)+2*dy(uh2)*dy(vh2) + 0.5*(dx(uh2)+dy(uh1))*(dx(vh2)+dy(vh1))))
     +int2d(Th)(lambda*(dx(uh1)+dy(uh2))*(dx(vh1)+dy(vh2)))
     +on(1,uh1=u1*delta, uh2=u2*delta)
@@ -97,13 +113,16 @@ problem elasticite([uh1,uh2],[vh1,vh2],solver=LU) =
 //---------------------------------------------------------------------//
 
 // Plots the solution for the second time
-StokesInit; 
+Stokes; 
 
-elasticite; 
+//elasticite;
 
-plot(p,[u1, u2], [uh1, uh2]);
+Couple;
+
+plot(Th);
+plot(,[u1, u2], [uh1, uh2]);
 
 mesh Sh;
 real scale=1;
 Sh=movemesh(Th,[x+scale*uh1,y+scale*uh2]);
-plot(Sh);
+//plot(Sh);
