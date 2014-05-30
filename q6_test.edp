@@ -14,6 +14,9 @@
 //---------------------------------------------------------------------//
 // Constants definitions
 //---------------------------------------------------------------------//
+
+int i=0;
+
 //Module de Young (toujours positif)
 real E=15.;	
 		
@@ -30,14 +33,14 @@ real nuFluide=0.01;
 // mesh density
 real L = 1;
 real Ly = L;
-real Lx = 3*Ly;
+real Lx = 20*Ly;
 
 int N=10;
 int Nx=N*Lx;
 int Ny=N*Ly;
 
 // Time step
-real delta = 1;
+real delta = 0.01;
 
 //---------------------------------------------------------------------//
 // Mesh
@@ -56,56 +59,29 @@ mesh Th = buildmesh( a(Nx) + b(Ny*0.3) + c(Nx) + d(Ny*0.3) + e(Ny*0.7) + f(Nx) +
 //---------------------------------------------------------------------//
 // Deformation
 fespace Vh(Th,P1);
-fespace Wh(Th, P1);
 
 // Stokes
-fespace Xh(Th, P2);
 fespace Mh(Th, P1);
 
 // Domain
 fespace Zh(Th, P0);
 
-//Zh isSolid = (region == 2);
-//Zh isFluid = (region == 1);
+Zh isSolid = ( y > 0.7 );
+Zh isFluid = ( y < 0.7);
 
-// Deformation
-Xh uh1, vh1;
-Xh uh2, vh2;
-
-// Stokes
-Xh u2, v2;
-Xh u1, v1;
+//coupled formula
+Vh uh1, vh1;
+Vh uh2, vh2;
 Mh p,q;
 
 // Solves the coupled formula
-problem Couple(uh1, uh2, vh1, vh2, u1, u2, v1, v2, solver=LU) = 
-     int2d(Th)(2*mu*(2*dx(uh1)*dx(vh1)+2*dy(uh2)*dy(vh2) + 0.5*(dx(uh2)+dy(uh1))*(dx(vh2)+dy(vh1))))
-    +int2d(Th)(lambda*(dx(uh1)+dy(uh2))*(dx(vh1)+dy(vh2)))
-   // +on(1,uh1=u1*delta, uh2=u2*delta)
-    +on(4,uh1=0,uh2=0)
-    +on(2,uh1=0,uh2=0)
-;
-
-//---------------------------------------------------------------------//
-// Solves the linear Stokes formula
-//---------------------------------------------------------------------//
-problem Stokes(u1, u2, p, v1, v2, q, solver=Crout)=
-    int2d(Th)(nu*(dx(u1)*dx(v1)+dy(u1)*dy(v1)+dx(u2)*dx(v2)+dy(u2)*dy(v2))
-    -p*q*(0.000001)-p*dx(v1)-p*dy(v2)-dx(u1)*q-dy(u2)*q)
-    +on(6, u2=0) // Vitesse horizontalle
-    +on(1, u1=0,u2=0)
-    +on(5, u1=-y^2+Ly^2, u2=0)
-;
-
-//---------------------------------------------------------------------//
-// Formulation du probleme lineaire 
-//---------------------------------------------------------------------//
-problem elasticite(uh1,uh2,vh1,vh2,solver=LU) =
-     int2d(Th)(2*mu*(2*dx(uh1)*dx(vh1)+2*dy(uh2)*dy(vh2) + 0.5*(dx(uh2)+dy(uh1))*(dx(vh2)+dy(vh1))))
-    +int2d(Th)(lambda*(dx(uh1)+dy(uh2))*(dx(vh1)+dy(vh2)))
-    +on(1,uh1=u1*delta, uh2=u2*delta)
-    +on(4,uh1=0,uh2=0)
-    +on(2,uh1=0,uh2=0)
+problem Couple(uh1, uh2, p, vh1, vh2, q, solver=LU) = 
+    int2d(Th)((isFluid*nuFluide+isSolid*mu)*(dx(uh1)*dx(vh1)+dy(uh1)*dy(vh1)+dx(uh2)*dx(vh2)+dy(uh2)*dy(vh2)
+    +dx(uh1)*dx(vh1)+dx(uh2)*dy(vh1)+dy(uh1)*dx(vh2)+dy(uh2)*dy(vh2))
+    -p*q*0.000001-isFluid*(p*dx(vh1)+p*dy(vh2))-dx(uh1)*q-dy(uh2)*q)
+    +on(2,4, uh1=0,uh2=0)
+    +on(5, uh1=delta*(-y^2+(0.7*Ly)^2), uh2=0) 
+    +on(6, uh2=0)
 ;
 
 //---------------------------------------------------------------------//
@@ -113,16 +89,9 @@ problem elasticite(uh1,uh2,vh1,vh2,solver=LU) =
 //---------------------------------------------------------------------//
 
 // Plots the solution for the second time
-Stokes; 
+for(i=0; i < 100 ; i++) {
+    Couple;
 
-//elasticite;
-
-Couple;
-
-plot(Th);
-plot(,[u1, u2], [uh1, uh2]);
-
-mesh Sh;
-real scale=1;
-Sh=movemesh(Th,[x+scale*uh1,y+scale*uh2]);
-//plot(Sh);
+    Th=movemesh(Th,[x,y+uh2]);
+    plot(movemesh(Th, [x,y+uh2*100]));
+}
