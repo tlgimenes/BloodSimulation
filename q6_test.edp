@@ -66,8 +66,10 @@ fespace Mh(Th, P1);
 // Domain
 fespace Zh(Th, P0);
 
-Zh isSolid = ( y > 0.7 );
-Zh isFluid = ( y < 0.7);
+Zh isSolid = ( y >= 0.7 );
+Zh isFluid = ( y <= 0.7 );
+
+plot([isSolid, isFluid]);
 
 //coupled formula
 Vh uh1, vh1;
@@ -76,11 +78,12 @@ Mh p,q;
 
 // Solves the coupled formula
 problem Couple(uh1, uh2, p, vh1, vh2, q, solver=LU) = 
-    int2d(Th)((isFluid*nuFluide+isSolid*mu)*(dx(uh1)*dx(vh1)+dy(uh1)*dy(vh1)+dx(uh2)*dx(vh2)+dy(uh2)*dy(vh2)
+    int2d(Th)((isFluid*nuFluide+isSolid*mu)*(
+     dx(uh1)*dx(vh1)+dy(uh1)*dy(vh1)+dx(uh2)*dx(vh2)+dy(uh2)*dy(vh2)
     +dx(uh1)*dx(vh1)+dx(uh2)*dy(vh1)+dy(uh1)*dx(vh2)+dy(uh2)*dy(vh2))
-    -p*q*0.000001-isFluid*(p*dx(vh1)+p*dy(vh2))-dx(uh1)*q-dy(uh2)*q)
+    -p*q*0.000001 - isFluid*delta*(p*dx(vh1)+p*dy(vh2))-dx(uh1)*q-dy(uh2)*q)
     +on(2,4, uh1=0,uh2=0)
-    +on(5, uh1=delta*(-y^2+(0.7*Ly)^2), uh2=0) 
+    +on(5, uh1=delta*(-y^2+(0.7*Ly)^2)*sin(delta*2*pi*i), uh2=0) 
     +on(6, uh2=0)
 ;
 
@@ -89,9 +92,13 @@ problem Couple(uh1, uh2, p, vh1, vh2, q, solver=LU) =
 //---------------------------------------------------------------------//
 
 // Plots the solution for the second time
-for(i=0; i < 100 ; i++) {
+for(i=0; i < 1000 ; i++) {
     Couple;
 
+    //plot(p);
+    //plot(p, [uh1, uh2]);
     Th=movemesh(Th,[x,y+uh2]);
-    plot(movemesh(Th, [x,y+uh2*100]));
+    plot(movemesh(Th, [x, y+uh2*100]));
+    isSolid = ( y >= 0.7 + uh2(x,0.7) );
+    isFluid = ( y <= 0.7 + uh2(x,0.7) );
 }
