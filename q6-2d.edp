@@ -69,8 +69,6 @@ fespace Zh(Th, P0);
 Zh isSolid = ( y >= 0.7 );
 Zh isFluid = ( y <= 0.7 );
 
-plot([isSolid, isFluid]);
-
 //coupled formula
 Vh uh1, vh1;
 Vh uh2, vh2;
@@ -95,7 +93,6 @@ problem Couple(uh1, uh2, p, vh1, vh2, q, solver=LU) =
 for(i=0; i < 1000 ; i++) {
     Couple;
 
-    //plot(p);
     //plot(p, [uh1, uh2]);
     Th=movemesh(Th,[x,y+uh2]);
     plot(movemesh(Th, [x, y+uh2*100]));
