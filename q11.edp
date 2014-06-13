@@ -1,0 +1,102 @@
+int i=0;
+
+//Module de Young (toujours positif)
+real E=15.;	
+		
+//Coefficient de Poisson (entre -1 et 1/2)
+real nu=0.35;
+
+//Coefficients de Lame
+real lambda=E*nu/((1.+nu)*(1.-2.*nu));
+real mu=E/(2.*(1.+nu));
+
+// nu du fluide
+real nuFluide=0.01;
+
+// mesh density
+real L = 1;
+real Ly = L;
+real Lx = 7*Ly;
+
+int N=9;
+int Nx=N*Lx;
+int Ny=N*Ly;
+
+// Time step
+real delta = 0.01;
+ 
+//---------------------------------------------------------------------//
+// Mesh
+//---------------------------------------------------------------------//
+border a(t=0,1){x=t*Lx; y = 0.7*Ly; label = 1;};
+border b(t=0.7*Ly,Ly){x = Lx; y = t; label = 2;};
+border c(t=1,0){x = Lx*t; y = Ly; label = 3;};
+border d(t=Ly, 0.7*Ly){x = 0; y = t; label = 4;};
+border e(t=0.7*Ly, 0){x = 0; y = t; label = 5;};
+border f(t=0,1){x = Lx*t; y = 0; label = 6;};
+border g(t=0,0.7*Ly){x = Lx; y = t; label = 7;};
+mesh Th = buildmesh( a(Nx) + b(Ny*0.3) + c(Nx) + d(Ny*0.3) + e(Ny*0.7) + f(Nx) + g(Ny*0.7));
+mesh Sh = Th;
+
+//---------------------------------------------------------------------//
+// Espaces EF et fonctions discretes
+//---------------------------------------------------------------------//
+// Deformation
+fespace Vh(Th,P1);
+
+// Stokes
+fespace Mh(Th, P1);
+
+// Domain
+fespace Zh(Th, P0);
+
+Zh isSolid = ( region >= 2 );
+Zh isFluid = ( region <= 2 );
+
+//plot([isSolid, isFluid]);
+
+//coupled formula
+Vh uh1, vh1;
+Vh uh2, vh2;
+Vh wh1, wh2;
+Mh p,q;
+
+wh1=0;
+wh2=0;
+
+int n=200;
+func ff=0.01*(-y^2+(0.7*Ly)^2)*sin((i%n)*pi/80)*((i%n)<80);
+//une fonction qui n’égale pas zéro si (i<#), égale zéro pour tout le reste de pas du temps. 
+//La fonction est juste pour éviter Problem Couple2.
+
+// Solves the coupled formula
+problem Couple1(uh1, uh2, p, vh1, vh2, q, solver=LU) = 
+    int2d(Th)((isFluid*nuFluide+isSolid*mu*delta)*(
+    dx(uh1)*dx(vh1)+dy(uh1)*dy(vh1)+dx(uh2)*dx(vh2)+dy(uh2)*dy(vh2)
+    +dx(uh1)*dx(vh1)+dx(uh2)*dy(vh1)+dy(uh1)*dx(vh2)+dy(uh2)*dy(vh2))
+    -p*q*0.000001- isFluid*(p*dx(vh1)+p*dy(vh2))-dx(uh1)*q-dy(uh2)*q)
+    +int2d(Th)((isSolid*mu*delta)*
+    (dx(wh1)*dx(vh1)+dy(wh1)*dy(vh1)+dx(wh2)*dx(vh2)+dy(wh2)*dy(vh2)
+    +dx(wh1)*dx(vh1)+dx(wh2)*dy(vh1)+dy(wh1)*dx(vh2)+dy(wh2)*dy(vh2))) //vient du deplacement de tour(i-1)
+    +on(2,4, uh1=0,uh2=0)
+    +on(5, uh1=ff, uh2=0) 
+    //+on(3, uh1=0, uh2=0.001*(Lx^2/4-(x-Lx/2)^2)*(i < 1)) 
+    +on(6, uh2=0)
+;
+
+for(i=0; i < 1000 ; i++) {
+
+    cout << i << endl;
+    Couple1;
+    wh1=wh1+uh1;
+    wh2=wh2+uh2;
+
+    //plot(p);
+    //plot( p, [uh1, uh2], wait=1);
+    Th=movemesh(Sh,[x,y+uh2*delta]);
+    plot(movemesh(Th, [x, y+100*uh2]), p, [uh1, uh2]);
+    //plot(movemesh(Th, [x, y+100*uh2*delta]));
+    isSolid = ( region >= 2 );
+    isFluid = ( region <= 2 );
+}
+

@@ -1,0 +1,136 @@
+//---------------------------------------------------------------------//
+//
+//  Simulation of the linear Stokes equation in fix 3D form 
+//
+//  Authors: Chongmo LIU
+//           Tiago Lobato Gimenes
+//
+//---------------------------------------------------------------------//
+
+//---------------------------------------------------------------------//
+// Solver for the linear problem
+//---------------------------------------------------------------------//
+
+//---------------------------------------------------------------------//
+// Constants definitions
+//---------------------------------------------------------------------//
+
+int i=0;
+
+//Module de Young (toujours positif)
+real E=15.;	
+		
+//Coefficient de Poisson (entre -1 et 1/2)
+real nu=0.35;
+
+//Coefficients de Lame
+real lambda=E*nu/((1.+nu)*(1.-2.*nu));
+real mu=E/(2.*(1.+nu));
+
+// nu du fluide
+real nuFluide=0.01;
+
+// mesh density
+real L = 1;
+real Ly = L;
+real Lx = 2*Ly;
+
+int N=10;
+int Nx=N*Lx;
+int Ny=N*Ly;
+
+// Time step
+real delta = 0.01;
+
+//---------------------------------------------------------------------//
+// Mesh
+//---------------------------------------------------------------------//
+border a(t=0,1){x=t*Lx; y = 0.7*Ly; label = 1;};
+border b(t=0.7*Ly,Ly){x = Lx; y = t; label = 2;};
+border c(t=1,0){x = Lx*t; y = Ly; label = 3;};
+border d(t=Ly, 0.7*Ly){x = 0; y = t; label = 4;};
+border e(t=0.7*Ly, 0){x = 0; y = t; label = 5;};
+border f(t=0,1){x = Lx*t; y = 0; label = 6;};
+border g(t=0,0.7*Ly){x = Lx; y = t; label = 7;};
+mesh Th = buildmesh( a(Nx) + b(Ny*0.3) + c(Nx) + d(Ny*0.3) + e(Ny*0.7) + f(Nx) + g(Ny*0.7));
+
+//---------------------------------------------------------------------//
+// Espaces EF et fonctions discretes
+//---------------------------------------------------------------------//
+// Deformation
+fespace Vh(Th,P1);
+
+// Stokes
+fespace Mh(Th, P1);
+
+// Domain
+fespace Zh(Th, P0);
+
+Zh isSolid = ( y >= 0.7 );
+Zh isFluid = ( y <= 0.7 );
+
+//coupled formula
+Vh uh1, vh1;
+Vh uh2, vh2;
+Mh p,q;
+
+// Solves the coupled formula
+problem Couple(uh1, uh2, p, vh1, vh2, q, solver=LU) = 
+    int2d(Th)((isFluid*nuFluide+isSolid*mu)*(
+     dx(uh1)*dx(vh1)+dy(uh1)*dy(vh1)+dx(uh2)*dx(vh2)+dy(uh2)*dy(vh2)
+    +dx(uh1)*dx(vh1)+dx(uh2)*dy(vh1)+dy(uh1)*dx(vh2)+dy(uh2)*dy(vh2))
+    -p*q*0.000001 - isFluid*delta*(p*dx(vh1)+p*dy(vh2))-dx(uh1)*q-dy(uh2)*q)
+    -int2d(Th)(isSolid*0.001*(vh1+vh2))
+    +on(2,4, uh1=0,uh2=0)
+    +on(5, uh1=delta*(-y^2+(0.7*Ly)^2)*sin(delta*2*pi*i), uh2=0) 
+    +on(6, uh2=0)
+;
+
+problem Couple2(uh1, uh2, p, vh1, vh2, q, solver=LU) = 
+    int2d(Th)((isFluid*nuFluide+isSolid*mu)*(
+     dx(uh1)*dx(vh1)+dy(uh1)*dy(vh1)+dx(uh2)*dx(vh2)+dy(uh2)*dy(vh2)
+    +dx(uh1)*dx(vh1)+dx(uh2)*dy(vh1)+dy(uh1)*dx(vh2)+dy(uh2)*dy(vh2))
+    -p*q*0.000001 - isFluid*delta*(p*dx(vh1)+p*dy(vh2))-dx(uh1)*q-dy(uh2)*q)
+    -int2d(Th)(isSolid*0.001*(vh1+vh2))
+    +on(2,4, uh1=0,uh2=0)
+    +on(5, uh1=0, uh2=0) 
+    +on(6, uh2=0)
+;
+
+//---------------------------------------------------------------------//
+// Main
+//---------------------------------------------------------------------//
+
+// Plots the solution for the second Time
+for(int j=0; j < 1000; j++) {
+    for(i=0; i < 10; i++) {    
+        Couple;
+
+        Th=movemesh(Th,[x,y+uh2]);
+        plot(movemesh(Th, [x, y+uh2*100]));
+        isSolid = ( y >= 0.7 + uh2(x,0.7) );
+        isFluid = ( y <= 0.7 + uh2(x,0.7) );
+    
+        cout << "avec" << endl;
+    }
+    for(i=0; i < 100; i++) {    
+        Couple2;
+
+        Th=movemesh(Th,[x,y+uh2]);
+        plot(movemesh(Th, [x, y+uh2*100]));
+        isSolid = ( y >= 0.7 + uh2(x,0.7) );
+        isFluid = ( y <= 0.7 + uh2(x,0.7) );
+
+        cout << "sans" << endl;
+    }
+}
+/*
+for(i=0; i < 1000 ; i++) {
+    Couple;
+
+    //plot(p, [uh1, uh2]);
+    Th=movemesh(Th,[x,y+uh2]);
+    plot(movemesh(Th, [x, y+uh2*100]));
+    isSolid = ( y >= 0.7 + uh2(x,0.7) );
+    isFluid = ( y <= 0.7 + uh2(x,0.7) );
+}*/
